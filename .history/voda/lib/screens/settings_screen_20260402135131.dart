@@ -417,7 +417,7 @@ class _RemindersSectionState extends State<_RemindersSection> {
       
       // Show immediate notification
       await NotificationService.showNow();
-
+      
       // Schedule for the whole day
       final nextTime = await NotificationService.scheduleForDay(
         water.reminderIntervalMinutes,
@@ -429,21 +429,18 @@ class _RemindersSectionState extends State<_RemindersSection> {
       if (nextTime != null) {
         final now = DateTime.now();
         final isTomorrow = nextTime.day != now.day;
-        final time =
-            '${nextTime.hour.toString().padLeft(2, '0')}:${nextTime.minute.toString().padLeft(2, '0')}';
+        final time = '${nextTime.hour.toString().padLeft(2, '0')}:${nextTime.minute.toString().padLeft(2, '0')}';
         final dayText = isTomorrow ? 'zajtra o' : 'dnes o';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '⏰ Ďalšia pripomienka: $dayText $time',
+              '⏰ Pripomienky naplánované na celý deň\nĎalšia: $dayText $time',
               style: const TextStyle(color: Colors.white),
             ),
             backgroundColor: const Color(0xFF14532D),
             behavior: SnackBarBehavior.floating,
             duration: const Duration(seconds: 5),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       }

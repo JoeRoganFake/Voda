@@ -52,8 +52,7 @@ class NotificationService {
     // Create Android notification channel
     await _plugin
         .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >()
+            AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(
           const AndroidNotificationChannel(
             'water_reminders',
@@ -66,19 +65,14 @@ class NotificationService {
 
   static Future<bool> requestPermissions() async {
     if (Platform.isAndroid) {
-      final plugin =
-          _plugin
-              .resolvePlatformSpecificImplementation<
+      final plugin = _plugin.resolvePlatformSpecificImplementation<
                 AndroidFlutterLocalNotificationsPlugin
               >();
       final result = await plugin?.requestNotificationsPermission();
       return result ?? true;
     } else if (Platform.isIOS) {
-      final plugin =
-          _plugin
-              .resolvePlatformSpecificImplementation<
-                IOSFlutterLocalNotificationsPlugin
-              >();
+      final plugin = _plugin.resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin>();
       return await plugin?.requestPermissions(
             alert: true,
             badge: false,
@@ -92,8 +86,8 @@ class NotificationService {
   static Future<void> showNow() async {
     await _plugin.show(
       0,
-      'Čas piť vodu',
-      'Nezabudnite sa napiť a dodržiavať pitný režim.',
+      'Čas piť vodu! 💧',
+      'Pripomienky sú zapnuté. Nezabudnite sa zapiť!',
       _notificationDetails,
     );
     debugPrint('[NotificationService] 🔔 Immediate notification shown');
@@ -102,7 +96,6 @@ class NotificationService {
   /// Background callback - fires when alarm triggers
   @pragma('vm:entry-point')
   static Future<void> _fireNotification() async {
-    // Note: Android alarm callbacks don't receive the alarm ID
     debugPrint(
       '[NotificationService] 🔥 Alarm triggered! Showing notification...',
     );
@@ -118,8 +111,8 @@ class NotificationService {
 
     await plugin.show(
       1,
-      'Čas piť vodu',
-      'Nezabudnite sa zapiť a dodržiavať pitný režim.',
+      'Čas piť vodu! 💧',
+      'Nezabudnite sa zapiť a splniť denný pitný cieľ.',
       _notificationDetails,
     );
 
@@ -159,9 +152,6 @@ class NotificationService {
   }) async {
     await cancelAll();
 
-    // Small delay to ensure cancellation completes
-    await Future.delayed(Duration(milliseconds: 100));
-
     final now = DateTime.now();
     DateTime? firstNotification;
     int alarmId = 1;
@@ -170,49 +160,23 @@ class NotificationService {
     debugPrint(
       '[NotificationService] ⏰ Interval: $intervalMinutes min, Active: $startHour:00-$endHour:00',
     );
+    debugPrint('[NotificationService] 📋 Scheduling reminders for today...');
 
     // Calculate all notification times for today
     var currentTime = now.add(Duration(minutes: intervalMinutes));
 
-    // Ensure first notification is at least 1 minute in the future
-    final minTime = now.add(Duration(minutes: 1));
-    if (currentTime.isBefore(minTime)) {
-      currentTime = minTime;
-    }
-
-    // If we're past active hours today, schedule for tomorrow starting at startHour
-    if (now.hour >= endHour || currentTime.hour >= endHour) {
-      currentTime = DateTime(now.year, now.month, now.day + 1, startHour, 0);
-      debugPrint(
-        '[NotificationService] 📋 Past active hours, scheduling for tomorrow starting at $startHour:00',
-      );
-    }
     // If first notification is before start hour today, move to start hour
-    else if (currentTime.hour < startHour) {
+    if (currentTime.hour < startHour) {
       currentTime = DateTime(now.year, now.month, now.day, startHour, 0);
-      // Ensure it's still in the future
-      if (currentTime.isBefore(minTime)) {
-        currentTime = minTime;
-      }
-      debugPrint('[NotificationService] 📋 Scheduling reminders for today...');
-    } else {
-      debugPrint('[NotificationService] 📋 Scheduling reminders for today...');
     }
 
     if (Platform.isAndroid) {
-      // Schedule notifications for the day
-      final targetDay = currentTime.day;
-      while (currentTime.day == targetDay && currentTime.hour < endHour) {
-        // Skip times that are too close or in the past
-        if (currentTime.isBefore(now.add(Duration(seconds: 30)))) {
-          currentTime = currentTime.add(Duration(minutes: intervalMinutes));
-          continue;
-        }
-
+      // Schedule notifications for today
+      while (currentTime.day == now.day && currentTime.hour < endHour) {
         firstNotification ??= currentTime;
 
         debugPrint(
-          '[NotificationService] 🔔 Scheduling alarm #$alarmId at ${currentTime.toString()}',
+          '[NotificationService] 🔔 Alarm #$alarmId at ${currentTime.toString()}',
         );
 
         await AndroidAlarmManager.oneShotAt(
@@ -227,15 +191,8 @@ class NotificationService {
         currentTime = currentTime.add(Duration(minutes: intervalMinutes));
       }
 
-      // Schedule midnight reschedule for the day after the last scheduled notification
-      // This ensures we reschedule for the next day's reminders
-      final scheduledDate = firstNotification ?? now;
-      final midnight = DateTime(
-        scheduledDate.year,
-        scheduledDate.month,
-        scheduledDate.day,
-      ).add(Duration(days: 1));
-
+      // Schedule midnight reschedule for next day
+      final midnight = DateTime(now.year, now.month, now.day + 1, 0, 0);
       await AndroidAlarmManager.oneShotAt(
         midnight,
         999, // special ID for midnight reschedule
@@ -251,10 +208,6 @@ class NotificationService {
       debugPrint(
         '[NotificationService] ✅ Total scheduled: ${alarmId - 1} notifications',
       );
-
-      // Store the count for efficient cancellation
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt('lastAlarmId', alarmId - 1);
     }
 
     return firstNotification;
@@ -270,9 +223,6 @@ class NotificationService {
     int endHour = 22,
   }) async {
     await cancelAll();
-    
-    // Small delay to ensure cancellation completes
-    await Future.delayed(Duration(milliseconds: 100));
 
     final now = DateTime.now();
     var scheduledTime = now.add(Duration(minutes: intervalMinutes));
@@ -339,20 +289,13 @@ class NotificationService {
 
   static Future<void> cancelAll() async {
     if (Platform.isAndroid) {
-      final prefs = await SharedPreferences.getInstance();
-      final lastId = prefs.getInt('lastAlarmId') ?? 30;
-
-      debugPrint('[NotificationService] 🗑️ Cancelling $lastId alarms...');
-
-      // Cancel only the alarms that were actually scheduled
-      for (int id = 1; id <= lastId; id++) {
+      // Cancel all possible daily alarm IDs (1-100)
+      for (int id = 1; id <= 100; id++) {
         await AndroidAlarmManager.cancel(id);
       }
       // Cancel midnight reschedule alarm
       await AndroidAlarmManager.cancel(999);
-      debugPrint(
-        '[NotificationService] ✅ Cancelled $lastId alarms + midnight alarm',
-      );
+      debugPrint('[NotificationService] 🗑️ All alarms cancelled');
     }
   }
 }

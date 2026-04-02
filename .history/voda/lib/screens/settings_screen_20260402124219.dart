@@ -414,36 +414,26 @@ class _RemindersSectionState extends State<_RemindersSection> {
         );
         return;
       }
-      
-      // Show immediate notification
-      await NotificationService.showNow();
-
-      // Schedule for the whole day
-      final nextTime = await NotificationService.scheduleForDay(
-        water.reminderIntervalMinutes,
+      final nextNotif = await NotificationService.scheduleReminders(
+        intervalMinutes: water.reminderIntervalMinutes,
         startHour: water.reminderStartHour,
         endHour: water.reminderEndHour,
       );
+      await NotificationService.showNow();
       
       if (!mounted) return;
-      if (nextTime != null) {
-        final now = DateTime.now();
-        final isTomorrow = nextTime.day != now.day;
-        final time =
-            '${nextTime.hour.toString().padLeft(2, '0')}:${nextTime.minute.toString().padLeft(2, '0')}';
-        final dayText = isTomorrow ? 'zajtra o' : 'dnes o';
+      if (nextNotif != null) {
+        final time = '${nextNotif.hour.toString().padLeft(2, '0')}:${nextNotif.minute.toString().padLeft(2, '0')}';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '⏰ Ďalšia pripomienka: $dayText $time',
+              'Ďalšia pripomienka: dnes o $time',
               style: const TextStyle(color: Colors.white),
             ),
             backgroundColor: const Color(0xFF14532D),
             behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 5),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            duration: const Duration(seconds: 4),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       }
@@ -455,10 +445,9 @@ class _RemindersSectionState extends State<_RemindersSection> {
 
   Future<void> _commitInterval(WaterProvider water, int minutes) async {
     await water.setReminderIntervalMinutes(minutes);
-    // Reschedule for the whole day with new interval if reminders are on
     if (water.remindersEnabled) {
-      await NotificationService.scheduleForDay(
-        minutes,
+      await NotificationService.scheduleReminders(
+        intervalMinutes: minutes,
         startHour: water.reminderStartHour,
         endHour: water.reminderEndHour,
       );
@@ -478,10 +467,9 @@ class _RemindersSectionState extends State<_RemindersSection> {
     if (newHour >= _endHour) return;
     setState(() => _startHour = newHour);
     await water.setReminderStartHour(newHour);
-    // Reschedule for the whole day if reminders are on (new active hours might affect scheduled times)
     if (water.remindersEnabled) {
-      await NotificationService.scheduleForDay(
-        water.reminderIntervalMinutes,
+      await NotificationService.scheduleReminders(
+        intervalMinutes: water.reminderIntervalMinutes,
         startHour: newHour,
         endHour: _endHour,
       );
@@ -500,10 +488,9 @@ class _RemindersSectionState extends State<_RemindersSection> {
     if (newHour <= _startHour) return;
     setState(() => _endHour = newHour);
     await water.setReminderEndHour(newHour);
-    // Reschedule for the whole day if reminders are on (new active hours might affect scheduled times)
     if (water.remindersEnabled) {
-      await NotificationService.scheduleForDay(
-        water.reminderIntervalMinutes,
+      await NotificationService.scheduleReminders(
+        intervalMinutes: water.reminderIntervalMinutes,
         startHour: _startHour,
         endHour: newHour,
       );

@@ -93,7 +93,7 @@ class NotificationService {
     await _plugin.show(
       0,
       'Čas piť vodu',
-      'Nezabudnite sa napiť a dodržiavať pitný režim.',
+      'Nezabudnite sa zapiť a dodržiavať pitný režim.',
       _notificationDetails,
     );
     debugPrint('[NotificationService] 🔔 Immediate notification shown');
@@ -158,7 +158,7 @@ class NotificationService {
     int endHour = 22,
   }) async {
     await cancelAll();
-
+    
     // Small delay to ensure cancellation completes
     await Future.delayed(Duration(milliseconds: 100));
 
@@ -208,7 +208,7 @@ class NotificationService {
           currentTime = currentTime.add(Duration(minutes: intervalMinutes));
           continue;
         }
-
+        
         firstNotification ??= currentTime;
 
         debugPrint(
@@ -235,7 +235,7 @@ class NotificationService {
         scheduledDate.month,
         scheduledDate.day,
       ).add(Duration(days: 1));
-
+      
       await AndroidAlarmManager.oneShotAt(
         midnight,
         999, // special ID for midnight reschedule
@@ -341,7 +341,7 @@ class NotificationService {
     if (Platform.isAndroid) {
       final prefs = await SharedPreferences.getInstance();
       final lastId = prefs.getInt('lastAlarmId') ?? 30;
-
+      
       debugPrint('[NotificationService] 🗑️ Cancelling $lastId alarms...');
 
       // Cancel only the alarms that were actually scheduled

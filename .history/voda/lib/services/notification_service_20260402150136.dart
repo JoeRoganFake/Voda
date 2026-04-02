@@ -90,12 +90,23 @@ class NotificationService {
   }
 
   static Future<void> showNow() async {
-    await _plugin.show(
-      0,
-      'Čas piť vodu',
-      'Nezabudnite sa napiť a dodržiavať pitný režim.',
-      _notificationDetails,
+    final prefs = await SharedPreferences.getInstance();
+    final current = prefs.getInt('currentIntake') ?? 0;
+    final goal = prefs.getInt('dailyGoal') ?? 2000;
+    final remaining = goal - current;
+
+    debugPrint(
+      '[NotificationService] 💧 Current: ${current}ml / Goal: ${goal}ml',
     );
+
+    String body;
+    if (remaining > 0) {
+      body = 'Zostáva: ${remaining}ml do cieľa (${current}ml / ${goal}ml)';
+    } else {
+      body = 'Cieľ splnený! Vynikajúce! (${current}ml / ${goal}ml)';
+    }
+
+    await _plugin.show(0, 'Čas piť vodu', body, _notificationDetails);
     debugPrint('[NotificationService] 🔔 Immediate notification shown');
   }
 
@@ -116,12 +127,24 @@ class NotificationService {
     const settings = InitializationSettings(android: androidSettings);
     await plugin.initialize(settings);
 
-    await plugin.show(
-      1,
-      'Čas piť vodu',
-      'Nezabudnite sa zapiť a dodržiavať pitný režim.',
-      _notificationDetails,
+    // Get current progress
+    final prefs = await SharedPreferences.getInstance();
+    final current = prefs.getInt('currentIntake') ?? 0;
+    final goal = prefs.getInt('dailyGoal') ?? 2000;
+    final remaining = goal - current;
+
+    debugPrint(
+      '[NotificationService] 💧 Current: ${current}ml / Goal: ${goal}ml',
     );
+
+    String body;
+    if (remaining > 0) {
+      body = 'Zostáva: ${remaining}ml do cieľa (${current}ml / ${goal}ml)';
+    } else {
+      body = 'Cieľ splnený! Vynikajúce! (${current}ml / ${goal}ml)';
+    }
+
+    await plugin.show(1, 'Čas piť vodu', body, _notificationDetails);
 
     debugPrint('[NotificationService] ✅ Notification shown successfully');
   }
@@ -158,7 +181,7 @@ class NotificationService {
     int endHour = 22,
   }) async {
     await cancelAll();
-
+    
     // Small delay to ensure cancellation completes
     await Future.delayed(Duration(milliseconds: 100));
 
@@ -170,6 +193,7 @@ class NotificationService {
     debugPrint(
       '[NotificationService] ⏰ Interval: $intervalMinutes min, Active: $startHour:00-$endHour:00',
     );
+    debugPrint('[NotificationService] 📋 Scheduling reminders for today...');
 
     // Calculate all notification times for today
     var currentTime = now.add(Duration(minutes: intervalMinutes));
@@ -184,7 +208,7 @@ class NotificationService {
     if (now.hour >= endHour || currentTime.hour >= endHour) {
       currentTime = DateTime(now.year, now.month, now.day + 1, startHour, 0);
       debugPrint(
-        '[NotificationService] 📋 Past active hours, scheduling for tomorrow starting at $startHour:00',
+        '[NotificationService] ⏰ Past active hours, scheduling for tomorrow at $startHour:00',
       );
     }
     // If first notification is before start hour today, move to start hour
@@ -194,9 +218,6 @@ class NotificationService {
       if (currentTime.isBefore(minTime)) {
         currentTime = minTime;
       }
-      debugPrint('[NotificationService] 📋 Scheduling reminders for today...');
-    } else {
-      debugPrint('[NotificationService] 📋 Scheduling reminders for today...');
     }
 
     if (Platform.isAndroid) {
@@ -208,7 +229,7 @@ class NotificationService {
           currentTime = currentTime.add(Duration(minutes: intervalMinutes));
           continue;
         }
-
+        
         firstNotification ??= currentTime;
 
         debugPrint(
@@ -235,7 +256,7 @@ class NotificationService {
         scheduledDate.month,
         scheduledDate.day,
       ).add(Duration(days: 1));
-
+      
       await AndroidAlarmManager.oneShotAt(
         midnight,
         999, // special ID for midnight reschedule
@@ -341,7 +362,7 @@ class NotificationService {
     if (Platform.isAndroid) {
       final prefs = await SharedPreferences.getInstance();
       final lastId = prefs.getInt('lastAlarmId') ?? 30;
-
+      
       debugPrint('[NotificationService] 🗑️ Cancelling $lastId alarms...');
 
       // Cancel only the alarms that were actually scheduled

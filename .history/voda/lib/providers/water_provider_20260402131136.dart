@@ -99,6 +99,7 @@ class WaterProvider extends ChangeNotifier {
   }
 
   Future<void> addWater(int ml) async {
+    final wasComplete = _currentIntake >= _dailyGoal;
     _currentIntake += ml;
     _log.add(ml);
     await _save();
@@ -107,6 +108,7 @@ class WaterProvider extends ChangeNotifier {
 
   Future<void> removeLast() async {
     if (_log.isEmpty) return;
+    final wasComplete = _currentIntake >= _dailyGoal;
     final last = _log.removeLast();
     _currentIntake = (_currentIntake - last).clamp(0, 99999);
     await _save();
